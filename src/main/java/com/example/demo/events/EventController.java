@@ -2,11 +2,14 @@ package com.example.demo.events;
 
 import static org.springframework.hateoas.mvc.ControllerLinkBuilder.linkTo;
 
+import com.example.demo.common.ErrorsResource;
 import java.net.URI;
 import javax.validation.Valid;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.Link;
 import org.springframework.hateoas.MediaTypes;
+import org.springframework.hateoas.mvc.ControllerLinkBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.Errors;
@@ -38,20 +41,30 @@ public class EventController {
 //        .build();
 
     if (errors.hasErrors()) {
-      return ResponseEntity.badRequest().body(errors);
+      return badRequest(errors);
     }
 
     eventValidator.validate(eventDto, errors);
 
     if (errors.hasErrors()) {
-      return ResponseEntity.badRequest().body(errors);
+      return badRequest(errors);
     }
 
     Event event = modelMapper.map(eventDto, Event.class);
     event.update();
     Event newEvent = this.eventRepository.save(event);
-    URI createdUri = linkTo(EventController.class).slash(newEvent.getId()).toUri();
+    ControllerLinkBuilder selfLinkBuilder = linkTo(EventController.class).slash(newEvent.getId());
+    URI createdUri = selfLinkBuilder.toUri();
     event.setId(10);
-    return ResponseEntity.created(createdUri).body(event);
+    EventResource eventResource = new EventResource(event);
+    eventResource.add(linkTo(EventController.class).withRel("query-events"));
+    eventResource.add(new Link("/docs/index.html#resources-events-create").withRel("profile"));
+//    eventResource.add(selfLinkBuilder.withSelfRel());
+    eventResource.add(selfLinkBuilder.withRel("update-event"));
+    return ResponseEntity.created(createdUri).body(eventResource);
+  }
+
+  private static ResponseEntity<ErrorsResource> badRequest(Errors errors) {
+    return ResponseEntity.badRequest().body(new ErrorsResource(errors));
   }
 }

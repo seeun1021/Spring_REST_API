@@ -5,12 +5,16 @@ import static org.springframework.hateoas.mvc.ControllerLinkBuilder.linkTo;
 import com.example.demo.common.ErrorsResource;
 
 import java.net.URI;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import javax.validation.Valid;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.Link;
@@ -68,10 +72,26 @@ public class EventController {
         return ResponseEntity.created(createdUri).body(eventResource);
     }
 
+//    @GetMapping
+//    public ResponseEntity queryEvents(Pageable pageable, PagedResourcesAssembler<Event> assembler) {
+//        Page<Event> page = this.eventRepository.findAll(pageable);
+//        var pagedResources = assembler.toResource(page, e -> new EventResource(e));
+//        pagedResources.add(new Link("/docs/index.html#resources-events-list").withRel("profile"));
+//        return ResponseEntity.ok(pagedResources);
+//    }
+
+    // HOMEWORK
     @GetMapping
     public ResponseEntity queryEvents(Pageable pageable, PagedResourcesAssembler<Event> assembler) {
         Page<Event> page = this.eventRepository.findAll(pageable);
-        var pagedResources = assembler.toResource(page, e -> new EventResource(e));
+        LocalDateTime now = LocalDateTime.now();
+        List<Event> filteredEvents = page.getContent().stream()
+            .filter(event -> event.getBasePrice() >= 100 && event.getBasePrice() <= 200)
+            .filter(event -> now.isAfter(event.getBeginEnrollmentDateTime()) && now.isBefore(event.getCloseEnrollmentDateTime()))
+            .collect(Collectors.toList());
+
+        Page<Event> filteredPage = new PageImpl<>(filteredEvents, pageable, filteredEvents.size());
+        var pagedResources = assembler.toResource(filteredPage, e -> new EventResource(e));
         pagedResources.add(new Link("/docs/index.html#resources-events-list").withRel("profile"));
         return ResponseEntity.ok(pagedResources);
     }

@@ -1,11 +1,33 @@
 package me.whiteship.demoinfleanrestapi.events;
 
+import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
+import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
+import static org.springframework.restdocs.headers.HeaderDocumentation.responseHeaders;
+import static org.springframework.restdocs.hypermedia.HypermediaDocumentation.linkWithRel;
+import static org.springframework.restdocs.hypermedia.HypermediaDocumentation.links;
+import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
+import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
+import static org.springframework.restdocs.payload.PayloadDocumentation.relaxedResponseFields;
+import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.time.LocalDateTime;
+import java.util.Set;
+import java.util.stream.IntStream;
 import me.whiteship.demoinfleanrestapi.accounts.Account;
 import me.whiteship.demoinfleanrestapi.accounts.AccountRepository;
 import me.whiteship.demoinfleanrestapi.accounts.AccountRole;
 import me.whiteship.demoinfleanrestapi.accounts.AccountService;
 import me.whiteship.demoinfleanrestapi.common.AppProperties;
 import me.whiteship.demoinfleanrestapi.common.BaseTest;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,21 +37,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.common.util.Jackson2JsonParser;
 import org.springframework.test.web.servlet.ResultActions;
-
-import java.time.LocalDateTime;
-import java.util.Set;
-import java.util.stream.IntStream;
-
-import static org.springframework.restdocs.headers.HeaderDocumentation.*;
-import static org.springframework.restdocs.hypermedia.HypermediaDocumentation.linkWithRel;
-import static org.springframework.restdocs.hypermedia.HypermediaDocumentation.links;
-import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
-import static org.springframework.restdocs.payload.PayloadDocumentation.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
 public class EventControllerTests extends BaseTest {
 
     @Autowired
@@ -388,7 +395,6 @@ public class EventControllerTests extends BaseTest {
         Event event = buildEvent(index);
         return this.eventRepository.save(event);
     }
-
     private Event buildEvent(int index) {
         return Event.builder()
                     .name("event " + index)
@@ -408,4 +414,55 @@ public class EventControllerTests extends BaseTest {
     }
 
 
+
+
+    @Test
+    @DisplayName("강의 - 2차 과제")
+    public void queryEvents_FilteredEvents_Correct() throws Exception {
+            // Given
+            IntStream.range(0, 30).forEach(this::generateEvent_hw);
+
+            // When & Then
+            this.mockMvc.perform(get("/api/events/search")
+                    .param("page", "1")
+                    .param("size", "10")
+                    .param("sort", "name,DESC"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("page").exists())
+                .andExpect(jsonPath("_embedded.eventList[0]._links.self").exists())
+                .andExpect(jsonPath("_embedded.eventList.*.eventStatus",
+                    Matchers.anyOf(Matchers.hasItem(EventStatus.PUBLISHED.toString()))))
+                .andExpect(jsonPath("_embedded.eventList.*.basePrice", Matchers.anyOf(
+                    Matchers.hasItem(
+                        Matchers.allOf(Matchers.greaterThanOrEqualTo(100), Matchers.lessThanOrEqualTo(200))
+                    ))))
+                .andExpect(jsonPath("_links.self").exists())
+                .andExpect(jsonPath("_links.profile").exists())
+                .andDo(document("query-events"))
+            ;}
+
+    private Event generateEvent_hw(int index) {
+        Event event = buildEvent_hw(index);
+        return this.eventRepository.save(event);
+    }
+
+    private Event buildEvent_hw(int index) {
+        return Event.builder()
+            .name("event " + index)
+            .description("test event")
+            .beginEnrollmentDateTime(LocalDateTime.of(2023, 4, 1, 14, 21))
+            .closeEnrollmentDateTime(LocalDateTime.of(2023, 4, 30, 14, 21))
+            .beginEventDateTime(LocalDateTime.of(2023, 4, 20, 14, 21))
+            .endEventDateTime(LocalDateTime.of(2023, 4, 26, 14, 21))
+            .basePrice(100)
+            .maxPrice(200)
+            .limitOfEnrollment(100)
+            .location("강남역 D2 스타텁 팩토리")
+            .free(false)
+            .offline(true)
+            .eventStatus(EventStatus.PUBLISHED)
+            .build();
+    }
+    
 }

@@ -1,5 +1,11 @@
 package me.whiteship.demoinfleanrestapi.events;
 
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+
+import java.net.URI;
+import java.time.LocalDateTime;
+import java.util.Optional;
+import javax.validation.Valid;
 import me.whiteship.demoinfleanrestapi.accounts.Account;
 import me.whiteship.demoinfleanrestapi.accounts.CurrentUser;
 import me.whiteship.demoinfleanrestapi.common.ErrorsResource;
@@ -13,13 +19,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.*;
-
-import javax.validation.Valid;
-import java.net.URI;
-import java.util.Optional;
-
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 @Controller
 @RequestMapping(value = "/api/events", produces = MediaTypes.HAL_JSON_VALUE)
@@ -74,6 +79,21 @@ public class EventController {
         if (account != null) {
             pagedResources.add(linkTo(EventController.class).withRel("create-event"));
         }
+        return ResponseEntity.ok(pagedResources);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity queryEvents_hw(Pageable pageable,
+        PagedResourcesAssembler<Event> assembler,
+        @CurrentUser Account account) {
+        Page<Event> page = this.eventRepository.findByBasePriceBetweenAndBeginEnrollmentDateTimeIsBeforeAndCloseEnrollmentDateTimeIsAfter(
+            100, 200, LocalDateTime.now(), LocalDateTime.now(), pageable);
+        var pagedResources = assembler.toModel(page, e -> new EventResource(e));
+        pagedResources.add(new Link("/docs/index.html#resources-events-list").withRel("profile"));
+        if (account != null) {
+            pagedResources.add(linkTo(EventController.class).withRel("create-event"));
+        }
+
         return ResponseEntity.ok(pagedResources);
     }
 
